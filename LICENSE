@@ -14,3 +14,9 @@ No part of this source code may be copied, modified, redistributed, sold, or use
 Exceptions:
 • The Cairo font in the fonts folder is licensed under the SIL Open Font License (see fonts/OFL.txt).
 • Leaflet in vendor/leaflet is licensed under the BSD-2-Clause License (see vendor/leaflet/LICENSE).
+
+بيانات الخريطة والأماكن في مجلد data مستمدة من OpenStreetMap وتخضع لرخصة Open Database License (ODbL).
+© OpenStreetMap contributors — https://www.openstreetmap.org/copyright
+
+Map and places data in the data folder are from OpenStreetMap and licensed under the Open Database License (ODbL).
+© OpenStreetMap contributors — https://www.openstreetmap.org/copyright

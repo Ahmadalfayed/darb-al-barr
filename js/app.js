@@ -24,6 +24,7 @@
     $$('.tabs button').forEach(x => x.classList.toggle('on', x === b));
     $$('.page').forEach(p => p.classList.toggle('active', p.id === 'p-' + b.dataset.p));
     if (b.dataset.p === 'rain') ensureRain();
+    if (b.dataset.p === 'dir') ensureDir();
     if (b.dataset.p === 'cal') renderCal();
     if (b.dataset.p === 'sky') renderSky();
     if (b.dataset.p === 'compass') updateCompassInfo();
@@ -489,6 +490,129 @@
     if (h == null) return;
     deviceHeading = h; setDial(h);
   }
+
+
+  // ---- دليل البر ----
+  let dirReady = false, dirLayer = null, dirMarkersOn = false, dirTimer = null;
+  const dirEmoji = (t) => (Places.TYPE_EMOJI[t] || '📍');
+
+  async function ensureDir() {
+    try {
+      const d = await Places.load();
+      if (!dirReady) {
+        const ts = $('#dirType'), cs = $('#dirCountry');
+        Object.entries(d.types).forEach(([k, v]) => {
+          const o = document.createElement('option'); o.value = k; o.textContent = v; ts.appendChild(o);
+        });
+        Object.entries(d.countries).forEach(([k, v]) => {
+          const o = document.createElement('option'); o.value = k; o.textContent = v; cs.appendChild(o);
+        });
+        $('#dirAttr').textContent = d.attr || '© OpenStreetMap contributors (ODbL)';
+        ['dirQ', 'dirType', 'dirCountry'].forEach(id => {
+          $(id === 'dirQ' ? '#dirQ' : '#' + id).addEventListener(id === 'dirQ' ? 'input' : 'change', () => {
+            clearTimeout(dirTimer); dirTimer = setTimeout(renderDir, id === 'dirQ' ? 180 : 0);
+          });
+        });
+        $('#dirMapOn').onchange = () => { dirMarkersOn = $('#dirMapOn').checked; renderDir(); if (dirMarkersOn) $$('.tabs button').find(x => x.dataset.p === 'map')?.focus(); };
+        dirReady = true;
+      }
+      $('#dirMeta').textContent = `${d.n.toLocaleString('ar')} موقع · مرتّبة حسب القرب منك`;
+      renderDir();
+    } catch (e) {
+      $('#dirMeta').textContent = 'تعذّر تحميل الدليل — تحقق من الإنترنت أول مرة';
+      $('#dirList').innerHTML = `<div class="card muted">${e.message || e}</div>`;
+    }
+  }
+
+  function renderDir() {
+    if (!Places.data) return;
+    const q = $('#dirQ').value, type = $('#dirType').value, country = $('#dirCountry').value;
+    const rows = Places.search({ q, type, country, lat: me.lat, lon: me.lon, limit: 120 });
+    $('#dirMeta').textContent = `${rows.length.toLocaleString('ar')} نتيجة` + (q || type || country ? ' (فلترة)' : '') + ` من ${Places.data.n.toLocaleString('ar')}`;
+    if (!rows.length) {
+      $('#dirList').innerHTML = '<div class="card muted">ما في نتائج بهالبحث. جرّب اسم أقصر أو فلتر ثاني.</div>';
+    } else {
+      $('#dirList').innerHTML = rows.map((r, idx) => {
+        const f = Geo.all(r.la, r.lo);
+        const dist = r._d != null ? Geo.fmtDist(r._d) : '';
+        const dir = r._d != null ? Geo.dirName(Geo.bearing(me.lat, me.lon, r.la, r.lo)) : '';
+        const tname = Places.data.types[r.t] || r.t;
+        const cname = Places.data.countries[r.c] || r.c;
+        return `<article class="dir-item" data-i="${idx}">
+          <div class="top"><h3>${dirEmoji(r.t)} ${escapeHtml(r.n)}</h3><span class="badge">${tname}</span></div>
+          <div class="meta">${cname}${dist ? ' · ' + dist + ' · ' + dir : ''}${r.alt ? ' · <span dir="ltr">' + escapeHtml(r.alt) + '</span>' : ''}</div>
+          <div class="coords">${f.dec}<br>${f.dms}</div>
+          <div class="acts">
+            <button data-a="copy" data-dec="${f.dec}">نسخ</button>
+            <button data-a="dms" data-dms="${encodeURIComponent(f.dms)}">نسخ DMS</button>
+            <button data-a="show">على الخريطة</button>
+            <button class="primary" data-a="go">توجّه إليها</button>
+          </div>
+        </article>`;
+      }).join('');
+      $('#dirList').onclick = (e) => {
+        const btn = e.target.closest('button[data-a]'); if (!btn) return;
+        const art = btn.closest('.dir-item'); const r = rows[+art.dataset.i];
+        if (btn.dataset.a === 'copy') copy(btn.dataset.dec);
+        if (btn.dataset.a === 'dms') copy(decodeURIComponent(btn.dataset.dms));
+        if (btn.dataset.a === 'show') goPlace(r, false);
+        if (btn.dataset.a === 'go') goPlace(r, true);
+      };
+    }
+    updateDirMarkers(rows);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  function goPlace(r, setDest) {
+    $$('.tabs button').find(x => x.dataset.p === 'map').click();
+    map.setView([r.la, r.lo], 13);
+    if (setDest) {
+      dest = { lat: r.la, lon: r.lo, name: r.n };
+      store.set('dest', dest); placeDest(); onPos();
+      toast('تم تعيين الوجهة: ' + r.n);
+    } else {
+      L.popup().setLatLng([r.la, r.lo]).setContent(`<b>${escapeHtml(r.n)}</b><br>${Places.data.types[r.t] || ''}<br><span dir="ltr">${r.la.toFixed(5)}, ${r.lo.toFixed(5)}</span>`).openOn(map);
+    }
+  }
+
+  function updateDirMarkers(rows) {
+    if (!dirLayer) dirLayer = L.layerGroup();
+    dirLayer.clearLayers();
+    if (!dirMarkersOn) {
+      if (map.hasLayer(dirLayer)) map.removeLayer(dirLayer);
+      return;
+    }
+    if (!map.hasLayer(dirLayer)) dirLayer.addTo(map);
+    rows.slice(0, 200).forEach(r => {
+      L.marker([r.la, r.lo], { icon: emoji(dirEmoji(r.t)) })
+        .bindPopup(`<b>${escapeHtml(r.n)}</b><br>${Places.data.types[r.t] || ''} · ${Places.data.countries[r.c] || r.c}<br><span dir="ltr">${r.la.toFixed(5)}, ${r.lo.toFixed(5)}</span>
+          <br><button onclick="window._dirGo(${r.la},${r.lo},decodeURIComponent('${encodeURIComponent(r.n)}'))">توجّه</button>`)
+        .addTo(dirLayer);
+    });
+  }
+  window._dirGo = (lat, lon, name) => {
+    dest = { lat, lon, name }; store.set('dest', dest); placeDest(); onPos(); map.closePopup(); toast('وجهة: ' + name);
+  };
+
+  // زر تبديل طبقة الدليل على الخريطة
+  (function () {
+    const btn = document.createElement('button');
+    btn.className = 'fab'; btn.id = 'btnDirLayer'; btn.title = 'طبقة دليل البر'; btn.textContent = '🏜';
+    btn.onclick = async () => {
+      try { await Places.load(); } catch { return toast('حمّل الدليل من تبويب دليل البر أولاً'); }
+      dirMarkersOn = !dirMarkersOn;
+      $('#dirMapOn').checked = dirMarkersOn;
+      btn.style.outline = dirMarkersOn ? '2px solid var(--acc)' : '';
+      const rows = Places.search({ q: $('#dirQ')?.value || '', type: $('#dirType')?.value || '', country: $('#dirCountry')?.value || '', lat: me.lat, lon: me.lon, limit: 200 });
+      updateDirMarkers(rows);
+      toast(dirMarkersOn ? 'طبقة الدليل ظاهرة (أقرب 200)' : 'أُخفيت طبقة الدليل');
+    };
+    $('.fabs')?.appendChild(btn);
+  })();
+
 
   // ---- Service Worker ----
   if ('serviceWorker' in navigator) {

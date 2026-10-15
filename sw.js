@@ -1,6 +1,6 @@
 /* درب البر — Service Worker (يعمل تحت /darb-al-barr/ وغيره) */
-const CACHE = 'darb-shell-v2';
-const SHELL_FILES = ['', 'index.html', 'css/style.css', 'js/app.js', 'js/geo.js', 'js/astro.js',
+const CACHE = 'darb-shell-v3';
+const SHELL_FILES = ['', 'index.html', 'css/style.css', 'js/app.js', 'js/geo.js', 'js/astro.js', 'js/places.js', 'data/places.json',
   'vendor/leaflet/leaflet.js', 'vendor/leaflet/leaflet.css', 'icons/logo.svg', 'manifest.json',
   'fonts/Cairo-Variable.woff2', 'vendor/leaflet/images/marker-icon.png',
   'vendor/leaflet/images/marker-icon-2x.png', 'vendor/leaflet/images/marker-shadow.png'];
