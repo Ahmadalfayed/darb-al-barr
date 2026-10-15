@@ -21,11 +21,13 @@
   let data = null, loadPromise = null;
 
   function hydrate(raw) {
+    const featured = new Set(raw.featured || []);
     const items = (raw.items || []).map((it, i) => ({
       i, n: it[0], t: it[1], la: it[2], lo: it[3], c: it[4], alt: it[5] || '',
+      featured: it[5] === 'مشهور',
       norm: normAr(it[0] + ' ' + (it[5] || ''))
     }));
-    data = { types: raw.types || {}, countries: raw.countries || {}, attr: raw.attr || '', items, n: items.length };
+    data = { types: raw.types || {}, countries: raw.countries || {}, attr: raw.attr || '', featured, items, n: items.length };
     return data;
   }
 
@@ -50,10 +52,16 @@
       list = list.filter(x => parts.every(p => x.norm.includes(p)));
     }
     if (lat != null && lon != null && isFinite(lat)) {
-      list = list.map(x => Object.assign({}, x, { _d: G.Geo.haversine(lat, lon, x.la, x.lo) }))
-        .sort((a, b) => a._d - b._d);
+      list = list.map(x => Object.assign({}, x, { _d: G.Geo.haversine(lat, lon, x.la, x.lo) }));
+      list.sort((a, b) => {
+        // بدون بحث: المشهورة أولاً ثم الأقرب
+        if (!nq && !type && !country) {
+          if (a.featured !== b.featured) return a.featured ? -1 : 1;
+        }
+        return a._d - b._d;
+      });
     } else {
-      list = list.slice().sort((a, b) => a.n.localeCompare(b.n, 'ar'));
+      list = list.slice().sort((a, b) => (b.featured - a.featured) || a.n.localeCompare(b.n, 'ar'));
     }
     return list.slice(0, limit);
   }

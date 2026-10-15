@@ -100,23 +100,21 @@
 </section>
 
 
+
 <!-- دليل البر -->
 <section class="page" id="p-dir">
-  <div class="card sticky-filters">
-    <h2>🏜 دليل البر</h2>
-    <p class="muted tiny">أماكن برية من OpenStreetMap (وديان، آبار، روضات، كثبان، قمم، مخيمات…) في الخليج والجزيرة. البيانات تعمل بدون نت بعد أول تحميل.</p>
-    <input type="search" id="dirQ" placeholder="ابحث: روضة، وادي، بئر، جبل…" autocomplete="off">
-    <div class="row">
+  <div class="card dir-card">
+    <h2>دليل الأماكن البرية <small class="muted">(بدون نت)</small></h2>
+    <input type="search" id="dirQ" placeholder="ابحث: روضة، وادي، جبل..." autocomplete="off">
+    <div class="muted tiny" id="dirDistHint">المسافة من موقعك الحالي</div>
+    <div class="dir-filters row">
       <select id="dirType"><option value="">كل الأنواع</option></select>
       <select id="dirCountry"><option value="">كل الدول</option></select>
-      <label class="chk"><input type="checkbox" id="dirMapOn"> على الخريطة</label>
     </div>
-    <div class="row">
-      <span class="muted tiny" id="dirMeta">جاري التحميل…</span>
-    </div>
+    <div id="dirList" class="dir-rows"></div>
+    <p class="muted tiny" id="dirMeta"></p>
+    <p class="muted tiny" id="dirAttr"></p>
   </div>
-  <div id="dirList" class="dir-list"></div>
-  <p class="muted tiny center" id="dirAttr"></p>
 </section>
 
 <!-- البوصلة -->
