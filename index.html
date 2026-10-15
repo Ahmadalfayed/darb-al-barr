@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>درب البر — دليلك في البر</title>
+<meta name="description" content="درب البر: خرائط البر بدون إنترنت، محول إحداثيات، تسجيل المسار، أين سيارتي، أماكن الأمطار، الطوالع والنجوم والبوصلة.">
+<meta name="theme-color" content="#1b2a4a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/logo.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="vendor/leaflet/leaflet.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="top">
+  <img src="icons/logo.svg" alt="" class="logo">
+  <div class="brand"><b>درب البر</b><small id="topSub">دليلك في البر</small></div>
+  <button class="icon-btn" id="themeBtn" title="الوضع الليلي">🌙</button>
+</header>
+
+<main>
+<!-- الخريطة -->
+<section class="page active" id="p-map">
+  <div id="map"></div>
+  <div class="map-hud" id="hud">
+    <div id="hudCoord">حدد موقعك…</div>
+    <div id="hudDest" class="muted"></div>
+  </div>
+  <div class="layer-sw">
+    <select id="layerSel" aria-label="نوع الخريطة">
+      <option value="osm">خريطة الطرق</option>
+      <option value="topo">تضاريس</option>
+      <option value="sat">قمر صناعي</option>
+    </select>
+  </div>
+  <div class="fabs">
+    <button class="fab" id="btnLocate" title="موقعي">📍</button>
+    <button class="fab" id="btnPOI" title="الآبار والمياه هنا">💧</button>
+    <button class="fab" id="btnOffline" title="حفظ المنطقة بدون نت">⬇️</button>
+  </div>
+  <div class="map-bar">
+    <button class="pill big car" id="btnCar">🚙 أين سيارتي</button>
+    <button class="pill big rec" id="btnRec">⏺ سجل المسار</button>
+    <button class="pill" id="btnTracks">🗂 مساراتي</button>
+  </div>
+</section>
+
+<!-- الأمطار -->
+<section class="page" id="p-rain">
+  <div class="rain-head card">
+    <div>
+      <h2>🌧 أين نزل المطر؟</h2>
+      <p class="muted">مجموع الأمطار في الخليج والجزيرة خلال الفترة المختارة (بيانات Open-Meteo المجانية).</p>
+    </div>
+    <div class="row">
+      <select id="rainDays"><option value="7">آخر ٧ أيام</option><option value="14" selected>آخر ١٤ يوم</option><option value="30">آخر ٣٠ يوم</option><option value="60">آخر ٦٠ يوم</option></select>
+      <button class="pill" id="rainLoad">تحديث</button>
+    </div>
+  </div>
+  <div id="rainMap"></div>
+  <div class="card"><h3>أقرب أماكن الأمطار منك</h3><ol id="rainList" class="list"><li class="muted">جاري التحميل…</li></ol></div>
+</section>
+
+<!-- الإحداثيات -->
+<section class="page" id="p-coord">
+  <div class="card">
+    <h2>🧭 محول الإحداثيات</h2>
+    <p class="muted">الصق أي نص فيه إحداثيات: رسالة واتساب، رابط خرائط جوجل، UTM، MGRS، درجات ودقائق، أو أرقام عشرية. نصلح الإحداثيات المقلوبة تلقائياً.</p>
+    <textarea id="coordIn" rows="4" placeholder="مثال: الكشتة عند 29.1234، 47.5678 أو N 24° 42' 49&quot; E 46° 40' 30&quot; أو 38R QT 89011 53318"></textarea>
+    <div class="row">
+      <button class="pill big" id="coordGo">حوّل</button>
+      <button class="pill" id="coordHere">موقعي الحالي</button>
+      <button class="pill" id="coordPaste">لصق</button>
+    </div>
+  </div>
+  <div id="coordOut"></div>
+</section>
+
+<!-- التقويم -->
+<section class="page" id="p-cal">
+  <div class="card hero-cal" id="calHero"></div>
+  <div class="grid2">
+    <div class="card" id="calMoon"></div>
+    <div class="card" id="calTali"></div>
+  </div>
+  <div class="card"><h3>🕌 مواقيت الصلاة <small class="muted" id="prayLoc"></small></h3><div id="prayGrid" class="pray"></div><p class="muted tiny">حساب تقريبي بطريقة أم القرى (الفجر 18.5°، العشاء بعد المغرب بـ90 دقيقة و120 في رمضان).</p></div>
+  <div class="card"><h3>📅 مواسم السنة</h3><div id="seasonList" class="seasons"></div><p class="muted tiny">التواريخ تقريبية حسب الحساب المتداول في الكويت والخليج.</p></div>
+</section>
+
+<!-- السماء -->
+<section class="page" id="p-sky">
+  <div class="card">
+    <h2>✨ سماء الليلة</h2>
+    <p class="muted">خريطة مبسطة للنجوم من موقعك الآن. المركز = فوق رأسك، والحافة = الأفق. الشمال فوق.</p>
+    <div class="row"><label>الوقت: <input type="time" id="skyTime"></label><button class="pill" id="skyNow">الآن</button></div>
+  </div>
+  <canvas id="sky" width="800" height="800"></canvas>
+  <div class="card"><h3>نجوم الاهتداء</h3><ul id="starList" class="list"></ul></div>
+</section>
+
+<!-- البوصلة -->
+<section class="page" id="p-compass">
+  <div class="compass-wrap">
+    <div class="compass" id="compass">
+      <div class="dial" id="dial">
+        <span class="n">ش</span><span class="e">ق</span><span class="s">ج</span><span class="w">غ</span>
+        <div class="qibla" id="qiblaMark" title="القبلة">🕋</div>
+        <div class="carmark" id="carMark" title="السيارة">🚙</div>
+      </div>
+      <div class="needle"></div>
+    </div>
+    <div class="heading" id="heading">--°</div>
+    <p class="muted center" id="compassMsg">وجّه الجوال أفقياً. على الآيفون اضغط «تشغيل البوصلة».</p>
+    <button class="pill big" id="compassStart">تشغيل البوصلة</button>
+    <div class="card" id="compassInfo"></div>
+  </div>
+</section>
+</main>
+
+<nav class="tabs">
+  <button data-p="map" class="on"><i>🗺</i>الخريطة</button>
+  <button data-p="rain"><i>🌧</i>الأمطار</button>
+  <button data-p="coord"><i>📐</i>إحداثيات</button>
+  <button data-p="cal"><i>🌙</i>التقويم</button>
+  <button data-p="sky"><i>✨</i>السماء</button>
+  <button data-p="compass"><i>🧭</i>البوصلة</button>
+</nav>
+<footer class="site-foot">© 2026 وطن النهار / Ahmadalfayed · جميع الحقوق محفوظة</footer>
+
+<div class="sheet" id="sheet"><div class="sheet-in"><button class="close" id="sheetClose">✕</button><div id="sheetBody"></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script src="vendor/leaflet/leaflet.js"></script>
+<script src="js/geo.js"></script>
+<script src="js/astro.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
